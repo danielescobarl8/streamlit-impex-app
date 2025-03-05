@@ -2,93 +2,112 @@ import streamlit as st
 import pandas as pd
 import io
 
-# Country options and corresponding replacements
-country_options = {
-    "Brazil": "Brazil",
-    "Chile": "Chile",
-    "Mexico": "Mexico",
-    "Colombia": "Colombia",
-    "Argentina": "Argentina"
-}
+# Define the password (change this!)
+PASSWORD = "specialized1974"
 
-# Streamlit UI
-st.title("Approval & Assignment Impex Generator")
+# Session state to track login status
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-# Country selection dropdown
-selected_country = st.selectbox("Select Country:", list(country_options.keys()))
+# Login form
+if not st.session_state.logged_in:
+    st.title("Login Required")
+    user_password = st.text_input("Enter Password:", type="password")
+    if st.button("Login"):
+        if user_password == PASSWORD:
+            st.session_state.logged_in = True
+            st.experimental_rerun()
+        else:
+            st.error("Incorrect password. Please try again.")
 
-# File Uploaders
-product_data_file = st.file_uploader("Upload Product Data File (TXT)", type="txt")
-master_data_file = st.file_uploader("Upload MASTER DATAFEED (Excel)", type=["xls", "xlsx"])
+# Show app only if logged in
+if st.session_state.logged_in:
+    # Country options and replacements
+    country_options = {
+        "Brazil": "Brazil",
+        "Chile": "Chile",
+        "Mexico": "Mexico",
+        "Colombia": "Colombia",
+        "Argentina": "Argentina"
+    }
 
-# Use session state to keep files available after processing
-if "approval_impex_content" not in st.session_state:
-    st.session_state.approval_impex_content = None
-if "assignment_impex_content" not in st.session_state:
-    st.session_state.assignment_impex_content = None
+    # Streamlit UI
+    st.title("Approval & Assignment Impex Generator")
 
-def process_files(product_data_file, master_data_file, country):
-    product_data = pd.read_csv(product_data_file, sep="\t")
-    master_data = pd.read_excel(master_data_file)
+    # Country selection dropdown
+    selected_country = st.selectbox("Select Country:", list(country_options.keys()))
 
-    eligible_products = product_data[
-        (product_data["BASE_APPROVED"] == True) &
-        (product_data["COLOR_APPROVED"] == True) &
-        (product_data["SKU_APPROVED"] == True) &
-        (product_data["ECOM_ENABLED"] == True)
-    ]
+    # File Uploaders
+    product_data_file = st.file_uploader("Upload Product Data File (TXT)", type="txt")
+    master_data_file = st.file_uploader("Upload MASTER DATAFEED (Excel)", type=["xls", "xlsx"])
 
-    eligible_color_ids = eligible_products["COLOR_ID"].unique()
-    approved_products = product_data[product_data["COLOR_ID"].isin(eligible_color_ids)]
-    additional_pids = master_data[master_data["COLOR_ID"].isin(eligible_color_ids)]
+    # Use session state to keep files available after processing
+    if "approval_impex_content" not in st.session_state:
+        st.session_state.approval_impex_content = None
+    if "assignment_impex_content" not in st.session_state:
+        st.session_state.assignment_impex_content = None
 
-    approval_impex = pd.DataFrame({
-        "SKU": pd.concat([approved_products["PID"], additional_pids["PID"]], ignore_index=True),
-        "Base Product ID": pd.concat([approved_products["MPL_PRODUCT_ID"], additional_pids["MPL_PRODUCT_ID"]], ignore_index=True),
-        "CATALOG_VERSION": f"SBC{country}ProductCatalog",
-        "APPROVAL_STATUS": "approved"
-    }).drop_duplicates()
+    def process_files(product_data_file, master_data_file, country):
+        product_data = pd.read_csv(product_data_file, sep="\t")
+        master_data = pd.read_excel(master_data_file)
 
-    assignment_impex = additional_pids[["PID"]].rename(columns={"PID": "SKU"})
-    assignment_impex["STOREFRONT_CODE"] = f"SBC{country}"
+        eligible_products = product_data[
+            (product_data["BASE_APPROVED"] == True) &
+            (product_data["COLOR_APPROVED"] == True) &
+            (product_data["SKU_APPROVED"] == True) &
+            (product_data["ECOM_ENABLED"] == True)
+        ]
 
-    # Convert to pipe-separated format for download
-    approval_impex_output = io.StringIO()
-    approval_impex.to_csv(approval_impex_output, sep="|", index=False)
-    approval_impex_content = approval_impex_output.getvalue()
+        eligible_color_ids = eligible_products["COLOR_ID"].unique()
+        approved_products = product_data[product_data["COLOR_ID"].isin(eligible_color_ids)]
+        additional_pids = master_data[master_data["COLOR_ID"].isin(eligible_color_ids)]
 
-    assignment_impex_output = io.StringIO()
-    assignment_impex.to_csv(assignment_impex_output, sep="|", index=False)
-    assignment_impex_content = assignment_impex_output.getvalue()
+        approval_impex = pd.DataFrame({
+            "SKU": pd.concat([approved_products["PID"], additional_pids["PID"]], ignore_index=True),
+            "Base Product ID": pd.concat([approved_products["MPL_PRODUCT_ID"], additional_pids["MPL_PRODUCT_ID"]], ignore_index=True),
+            "CATALOG_VERSION": f"SBC{country}ProductCatalog",
+            "APPROVAL_STATUS": "approved"
+        }).drop_duplicates()
 
-    return approval_impex_content, assignment_impex_content
+        assignment_impex = additional_pids[["PID"]].rename(columns={"PID": "SKU"})
+        assignment_impex["STOREFRONT_CODE"] = f"SBC{country}"
 
-if st.button("Generate Impex Files"):
-    if product_data_file and master_data_file:
-        approval_impex_content, assignment_impex_content = process_files(
-            product_data_file, master_data_file, country_options[selected_country]
+        # Convert to pipe-separated format for download
+        approval_impex_output = io.StringIO()
+        approval_impex.to_csv(approval_impex_output, sep="|", index=False)
+        approval_impex_content = approval_impex_output.getvalue()
+
+        assignment_impex_output = io.StringIO()
+        assignment_impex.to_csv(assignment_impex_output, sep="|", index=False)
+        assignment_impex_content = assignment_impex_output.getvalue()
+
+        return approval_impex_content, assignment_impex_content
+
+    if st.button("Generate Impex Files"):
+        if product_data_file and master_data_file:
+            approval_impex_content, assignment_impex_content = process_files(
+                product_data_file, master_data_file, country_options[selected_country]
+            )
+
+            # Store files in session state
+            st.session_state.approval_impex_content = approval_impex_content
+            st.session_state.assignment_impex_content = assignment_impex_content
+
+            st.success(f"Files have been generated for {selected_country}! Download below.")
+
+    # Show download buttons only if files exist in session state
+    if st.session_state.approval_impex_content:
+        st.download_button(
+            "Download Approval Impex",
+            st.session_state.approval_impex_content,
+            "Approval_Impex.txt",
+            "text/plain"
         )
 
-        # Store files in session state
-        st.session_state.approval_impex_content = approval_impex_content
-        st.session_state.assignment_impex_content = assignment_impex_content
-
-        st.success(f"Files have been generated for {selected_country}! Download below.")
-
-# Show download buttons only if files exist in session state
-if st.session_state.approval_impex_content:
-    st.download_button(
-        "Download Approval Impex",
-        st.session_state.approval_impex_content,
-        "Approval_Impex.txt",
-        "text/plain"
-    )
-
-if st.session_state.assignment_impex_content:
-    st.download_button(
-        "Download Assignment Impex",
-        st.session_state.assignment_impex_content,
-        "Assignment_Impex.txt",
-        "text/plain"
-    )
-
+    if st.session_state.assignment_impex_content:
+        st.download_button(
+            "Download Assignment Impex",
+            st.session_state.assignment_impex_content,
+            "Assignment_Impex.txt",
+            "text/plain"
+        )
