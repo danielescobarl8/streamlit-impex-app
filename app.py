@@ -4,7 +4,7 @@ import io
 import os
 
 # Secure Password Option (set password in Render environment variables)
-PASSWORD = os.getenv("APP_PASSWORD", "defaultpassword")
+PASSWORD = os.getenv("APP_PASSWORD", "specialized1974")
 
 # Session state to track login status
 if "logged_in" not in st.session_state:
@@ -55,10 +55,6 @@ if st.session_state.logged_in:
         st.session_state.approval_impex_content = None
     if "assignment_impex_content" not in st.session_state:
         st.session_state.assignment_impex_content = None
-    if "stat1" not in st.session_state:
-        st.session_state.stat1 = None
-    if "stat2" not in st.session_state:
-        st.session_state.stat2 = None
 
     def process_files(product_data_file, master_data_file, country):
         product_data = pd.read_csv(product_data_file, sep="\t")
@@ -85,16 +81,6 @@ if st.session_state.logged_in:
         assignment_impex = additional_pids[["PID"]].rename(columns={"PID": "SKU"})
         assignment_impex["STOREFRONT_CODE"] = f"SBC{country}"
 
-        # Stat #1: SKUs added that were not originally in the catalog
-        original_skus = set(product_data["PID"].unique())
-        additional_skus = set(additional_pids["PID"].unique())
-        skus_not_in_original = additional_skus - original_skus
-        stat1 = len(skus_not_in_original)
-
-        # Stat #2: SKUs that will be turned on
-        previously_disabled_skus = approved_products[approved_products["ECOM_ENABLED"] == False]["PID"].unique()
-        stat2 = stat1 + len(previously_disabled_skus)
-
         # Convert to pipe-separated format for download
         approval_impex_output = io.StringIO()
         approval_impex.to_csv(approval_impex_output, sep="|", index=False)
@@ -104,19 +90,17 @@ if st.session_state.logged_in:
         assignment_impex.to_csv(assignment_impex_output, sep="|", index=False)
         assignment_impex_content = assignment_impex_output.getvalue()
 
-        return approval_impex_content, assignment_impex_content, stat1, stat2
+        return approval_impex_content, assignment_impex_content
 
     if st.button("Generate Impex Files"):
         if product_data_file and master_data_file:
-            approval_impex_content, assignment_impex_content, stat1, stat2 = process_files(
+            approval_impex_content, assignment_impex_content = process_files(
                 product_data_file, master_data_file, country_options[selected_country]
             )
 
-            # Store files and stats in session state
+            # Store files in session state
             st.session_state.approval_impex_content = approval_impex_content
             st.session_state.assignment_impex_content = assignment_impex_content
-            st.session_state.stat1 = stat1
-            st.session_state.stat2 = stat2
 
             st.success(f"Files have been generated for {selected_country}! Download below.")
 
@@ -136,9 +120,3 @@ if st.session_state.logged_in:
             "Assignment_Impex.txt",
             "text/plain"
         )
-
-    # Display Stats
-    if st.session_state.stat1 is not None and st.session_state.stat2 is not None:
-        st.subheader("📊 Summary of Changes")
-        st.write(f"**Stat #1: SKUs Added (Not Originally in the Catalog):** {st.session_state.stat1}")
-        st.write(f"**Stat #2: SKUs That Will Be Turned On:** {st.session_state.stat2}")
