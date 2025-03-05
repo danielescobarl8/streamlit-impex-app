@@ -4,7 +4,7 @@ import io
 import os
 
 # Secure Password Option (set password in Render environment variables)
-PASSWORD = os.getenv("APP_PASSWORD", "defaultpassword")
+PASSWORD = os.getenv("APP_PASSWORD", "specialized1974")
 
 # Session state to track login status
 if "logged_in" not in st.session_state:
