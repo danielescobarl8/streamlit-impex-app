@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import io
+import os
 
-# Define the password (change this!)
-PASSWORD = "specialized1974"
+# Secure Password Option (set password in Render environment variables)
+PASSWORD = os.getenv("APP_PASSWORD", "defaultpassword")
 
 # Session state to track login status
 if "logged_in" not in st.session_state:
@@ -37,9 +38,17 @@ if st.session_state.logged_in:
     # Country selection dropdown
     selected_country = st.selectbox("Select Country:", list(country_options.keys()))
 
-    # File Uploaders
-    product_data_file = st.file_uploader("Upload Product Data File (TXT)", type="txt")
-    master_data_file = st.file_uploader("Upload MASTER DATAFEED (Excel)", type=["xls", "xlsx"])
+    # File Uploaders with Instructions
+    st.subheader("Upload Product Data File (TXT)")
+    st.write("📌 **Instructions:** Add the most recently downloaded datafeed from your country. "
+             "Filter out archived products. Filter only for bikes in the column **PRODUCT_TYPE**. "
+             "Load a **TXT File** type.")
+    product_data_file = st.file_uploader("Choose a TXT file", type="txt")
+
+    st.subheader("Upload MASTER DATAFEED (Excel)")
+    st.write("📌 **Instructions:** Add a **USA recent Datafeed** for comparison. "
+             "Only keep up to column **AG** and filter for **PRODUCT_TYPE** equals **BIKE**.")
+    master_data_file = st.file_uploader("Choose an Excel file", type=["xls", "xlsx"])
 
     # Use session state to keep files available after processing
     if "approval_impex_content" not in st.session_state:
@@ -111,3 +120,4 @@ if st.session_state.logged_in:
             "Assignment_Impex.txt",
             "text/plain"
         )
+
