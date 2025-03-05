@@ -17,7 +17,7 @@ if not st.session_state.logged_in:
     if st.button("Login"):
         if user_password == PASSWORD:
             st.session_state.logged_in = True
-            st.experimental_rerun()
+            st.rerun()  # ✅ Fixed: Use st.rerun() instead of st.experimental_rerun()
         else:
             st.error("Incorrect password. Please try again.")
 
@@ -120,4 +120,3 @@ if st.session_state.logged_in:
             "Assignment_Impex.txt",
             "text/plain"
         )
-
